@@ -1,47 +1,41 @@
 #!/bin/bash
 
-# Script para inicializar a interface web
+# Script para inicializar a Interface Web
 # Uso: ./iniciar_interface.sh
 
 echo "========================================"
 echo "🚀 Iniciando Interface Web"
 echo "========================================"
 
-# Verificar se está no diretório correto
-if [ ! -d "src/interface" ]; then
+if [ ! -f "docker-compose.yml" ]; then
     echo "❌ Erro: Execute este script da raiz do projeto"
     exit 1
 fi
 
-# Ativar ambiente virtual
-if [ -d ".venv" ]; then
-    echo "✅ Ativando ambiente virtual..."
-    source .venv/bin/activate
-else
-    echo "❌ Ambiente virtual não encontrado em .venv"
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker não encontrado. Instale: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
-# Verificar se streamlit está instalado
-if ! python -c "import streamlit" 2>/dev/null; then
-    echo "⚠️  Streamlit não encontrado. Instalando dependências..."
-    pip install -r requirements_web.txt
+if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+    echo "❌ Docker Compose não encontrado."
+    exit 1
 fi
 
-# Criar diretórios necessários
 mkdir -p data logs
 
-# Iniciar aplicação
-echo ""
-echo "========================================"
-echo "🌐 Abrindo interface web..."
-echo "========================================"
-echo ""
-echo "A interface será aberta automaticamente no navegador."
-echo "URL: http://localhost:8501"
-echo ""
-echo "Pressione Ctrl+C para encerrar"
-echo ""
+COMPOSE_CMD="docker compose"
+if ! docker compose version &> /dev/null && command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD="docker-compose"
+fi
 
-# Executar streamlit
-streamlit run src/interface/app.py
+echo ""
+echo "✅ Iniciando container..."
+echo "🌐 Interface: http://localhost:8501"
+echo ""
+$COMPOSE_CMD up -d web
+echo ""
+echo "🌐 Interface Web iniciada em background."
+echo "Acessar:    http://localhost:8501"
+echo "Ver logs:   $COMPOSE_CMD logs -f web"
+echo "Parar:      $COMPOSE_CMD stop web"
