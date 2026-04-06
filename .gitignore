@@ -1,11 +1,9 @@
-
-venv
-.venv
+# Python
+venv/
+.venv/
 venv*/
 ENV/
 env/
-
-
 __pycache__/
 *.pyc
 *.pyo
@@ -17,7 +15,7 @@ __pycache__/
 dist/
 build/
 
-
+# Environment & Secrets
 .env
 .env.local
 .env.*.local
@@ -27,21 +25,25 @@ credentials.json
 config.ini
 settings.local.py
 
-
+# Logs
 logs/
 *.log
 *.log.*
-.DS_Store
-Thumbs.db
 
-
+# Database & Data (generated at runtime)
 *.db
 *.sqlite
 *.sqlite3
 data/*.db
 data/*.sqlite
+data/*.csv
+data/raw/
 
+# OS
+.DS_Store
+Thumbs.db
 
+# IDE
 .vscode/
 .idea/
 *.swp
@@ -51,10 +53,10 @@ data/*.sqlite
 .pydevproject
 .settings/
 
-
+# Jupyter
 .ipynb_checkpoints/
 
-
+# Testing
 .cache/
 .pytest_cache/
 .mypy_cache/
@@ -62,19 +64,13 @@ data/*.sqlite
 .coverage
 htmlcov/
 
-
+# Misc
 *.bak
 *.backup
 *.old
-
-
-*.pem
-*.key
-*.crt
-*.p12
-*.pfx
-
-
 *.tmp
 *.temp
 .~lock.*
+
+# Docker
+*.pid
