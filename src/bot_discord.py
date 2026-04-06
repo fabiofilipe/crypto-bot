@@ -290,6 +290,56 @@ async def comando_eth(ctx):
     await comando_crypto(ctx, "ETH")
 
 
+@bot.command(name="real", aliases=["rt", "live"])
+async def comando_real(ctx, ativo: str = None):
+    """Preço em tempo real da API (atualiza o banco)
+    Uso: !real BTC
+    """
+    if not ativo:
+        await ctx.send("❌ Especifique um ativo! Ex: `!real BTC`")
+        return
+
+    simbolo = _resolver_ativo(ativo)
+    taxa_brl = api.get_rate_to_currency("USD", "BRL")
+
+    # Buscar preço real-time da API
+    market = api.get_market_data(f"{simbolo}-USD")
+    if not market:
+        await ctx.send(f"❌ Não foi possível obter preço de **{simbolo}** da API.")
+        return
+
+    spot = market["spot_price"]
+    buy = market.get("buy_price")
+    sell = market.get("sell_price")
+    spread = market.get("spread_pct", 0)
+    preco_brl = spot * taxa_brl if taxa_brl else None
+
+    # Salvar no banco para manter histórico atualizado
+    horario = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db.inserir_preco(simbolo, spot, "USD", horario)
+
+    embed = discord.Embed(
+        title=f"🔴 LIVE — {simbolo}",
+        description=f"Preço em tempo real da Coinbase",
+        color=0xff4500,
+        timestamp=datetime.now(),
+    )
+
+    valor = f"**${spot:,.2f}** USD"
+    if preco_brl:
+        valor += f"\n**R$ {preco_brl:,.2f}** BRL"
+    embed.add_field(name="💰 Preço Agora", value=valor, inline=False)
+
+    if buy and sell:
+        embed.add_field(name="💹 Buy", value=f"${buy:,.2f}", inline=True)
+        embed.add_field(name="💹 Sell", value=f"${sell:,.2f}", inline=True)
+        embed.add_field(name="📊 Spread", value=f"{spread:.2f}%", inline=True)
+
+    embed.set_footer(text=f"Atualizado agora • DB atualizado com este preço")
+    await ctx.send(embed=embed)
+    logger.info(f"Preço LIVE de {simbolo} enviado para {ctx.author}")
+
+
 @bot.command(name="todos", aliases=["all", "tudo"])
 async def comando_todos(channel):
     """Status de todos os ativos"""
@@ -359,7 +409,15 @@ async def comando_ajuda(ctx):
         color=discord.Color.blue(),
     )
     embed.add_field(
-        name="💰 Consultas",
+        name="🔴 Tempo Real",
+        value=(
+            "`!real BTC` — Preço ao vivo da API (atualiza o banco)\n"
+            "Aliases: `!rt`, `!live`"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="💰 Consultas (dados do banco)",
         value=(
             "`!crypto BTC` — Relatório completo\n"
             "`!comparar BTC ETH` — Comparação lado a lado\n"
