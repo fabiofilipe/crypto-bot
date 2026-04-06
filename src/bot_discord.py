@@ -9,10 +9,17 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 
-from database.db_manager import DatabaseManager
-from utils.coinbase_api import CoinbaseAPI
-from utils.logger import configurar_logger
-from pipeline import ATIVOS_DISPONIVEIS
+# Suporte para execução como módulo ou script
+try:
+    from .database.db_manager import DatabaseManager
+    from .utils.coinbase_api import CoinbaseAPI
+    from .utils.logger import configurar_logger
+    from .pipeline import ATIVOS_DISPONIVEIS
+except ImportError:
+    from database.db_manager import DatabaseManager
+    from utils.coinbase_api import CoinbaseAPI
+    from utils.logger import configurar_logger
+    from pipeline import ATIVOS_DISPONIVEIS
 
 load_dotenv()
 logger = configurar_logger("bot_discord")
