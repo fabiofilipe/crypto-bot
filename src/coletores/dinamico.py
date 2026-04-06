@@ -1,6 +1,6 @@
 from datetime import datetime
 from .base import ColetorBase
-from ..utils.coinbase_api import CoinbaseAPI
+from utils.coinbase_api import CoinbaseAPI
 
 
 class ColetorDinamico(ColetorBase):

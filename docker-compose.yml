@@ -20,6 +20,8 @@ services:
     build: .
     container_name: crypto-collector
     env_file: .env
+    environment:
+      - PYTHONPATH=/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,12 +29,14 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     restart: unless-stopped
-    command: python -m src.scheduler
+    command: python -m scheduler
 
   web:
     build: .
     container_name: crypto-web
     env_file: .env
+    environment:
+      - PYTHONPATH=/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,12 +46,14 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     restart: unless-stopped
-    command: streamlit run src/interface/app.py --server.address 0.0.0.0 --server.port 8501
+    command: streamlit run interface/app.py --server.address 0.0.0.0 --server.port 8501
 
   discord-bot:
     build: .
     container_name: crypto-discord-bot
     env_file: .env
+    environment:
+      - PYTHONPATH=/app/src
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,7 +61,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
     restart: unless-stopped
-    command: python -m src.bot_discord
+    command: python -m bot_discord
 
 volumes:
   pgdata:

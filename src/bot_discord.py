@@ -1,6 +1,6 @@
 """
 Bot Discord para consultas de criptomoedas
-Execute: python -m src.bot_discord
+Execute: python -m bot_discord (com PYTHONPATH apontando para src/)
 """
 
 import discord
@@ -9,17 +9,10 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 
-# Suporte para execução como módulo ou script
-try:
-    from .database.db_manager import DatabaseManager
-    from .utils.coinbase_api import CoinbaseAPI
-    from .utils.logger import configurar_logger
-    from .pipeline import ATIVOS_DISPONIVEIS
-except ImportError:
-    from database.db_manager import DatabaseManager
-    from utils.coinbase_api import CoinbaseAPI
-    from utils.logger import configurar_logger
-    from pipeline import ATIVOS_DISPONIVEIS
+from database.db_manager import DatabaseManager
+from utils.coinbase_api import CoinbaseAPI
+from utils.logger import configurar_logger
+from pipeline import ATIVOS_DISPONIVEIS
 
 load_dotenv()
 logger = configurar_logger("bot_discord")
@@ -359,7 +352,7 @@ async def comando_ativos(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command(name="ajuda", aliases=["help", "comandos"])
+@bot.command(name="ajuda", aliases=["comandos"])
 async def comando_ajuda(ctx):
     embed = discord.Embed(
         title="📋 Comandos Disponíveis",

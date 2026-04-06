@@ -1,20 +1,14 @@
 """
 Sistema de agendamento automático para coleta de dados
-Execute: python -m src.scheduler (dentro do container)
-         python src/scheduler.py (local)
+Execute: python -m scheduler (com PYTHONPATH=/app/src)
 """
 
 import schedule
 import time
 from datetime import datetime
 
-# Suporte para execução como módulo ou script
-try:
-    from .pipeline import PipelineColeta
-    from .utils.logger import configurar_logger
-except ImportError:
-    from pipeline import PipelineColeta
-    from utils.logger import configurar_logger
+from pipeline import PipelineColeta
+from utils.logger import configurar_logger
 
 
 class AgendadorPipeline:

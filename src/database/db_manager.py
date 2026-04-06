@@ -10,10 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-try:
-    from ..utils.logger import configurar_logger
-except ImportError:
-    from utils.logger import configurar_logger
+from utils.logger import configurar_logger
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
