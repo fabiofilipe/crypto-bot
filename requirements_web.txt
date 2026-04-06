@@ -1,0 +1,27 @@
+# Dependências para a Interface Web (Streamlit)
+# Para instalar: pip install -r requirements_web.txt
+
+# Dependências principais do projeto
+certifi==2025.10.5
+charset-normalizer==3.4.4
+colorama==0.4.6
+idna==3.11
+numpy==1.26.4
+pandas==2.2.0
+pyarrow==22.0.0
+python-dateutil==2.9.0.post0
+python-dotenv==1.0.0
+pytz==2025.2
+requests==2.31.0
+schedule==1.2.2
+six==1.17.0
+tzdata==2025.2
+urllib3==2.5.0
+
+# Dependências da interface web
+streamlit>=1.31.0
+plotly>=5.18.0
+openpyxl>=3.1.2
+
+# Bot Discord
+discord.py>=2.3.0
