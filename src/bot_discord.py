@@ -119,7 +119,7 @@ async def comando_crypto(ctx, ativo: str = None):
     info_ativo = db.obter_info_ativo(simbolo)
     nome_ativo = info_ativo["nome"] if info_ativo else simbolo
 
-    preco = ultimo["preco"]
+    preco = float(ultimo["preco"])
     preco_brl = preco * taxa_brl if taxa_brl else None
 
     # Cores e emojis
@@ -220,7 +220,7 @@ async def comando_comparar(ctx, ativo1: str = None, ativo2: str = None):
     taxa_brl = api.get_rate_to_currency("USD", "BRL")
 
     def campo(ativo, ultimo, stats):
-        preco = ultimo["preco"]
+        preco = float(ultimo["preco"])
         brl = f"\nR$ {preco * taxa_brl:,.2f}" if taxa_brl else ""
         var = "N/A"
         if stats and stats["total_registros"] > 0:
@@ -309,7 +309,7 @@ async def comando_todos(channel):
     taxa_brl = api.get_rate_to_currency("USD", "BRL")
     for item in resumo:
         ativo = item["ativo"]
-        preco = item["preco"]
+        preco = float(item["preco"])
         brl = f"\nR$ {preco * taxa_brl:,.2f}" if taxa_brl else ""
         stats = db.obter_estatisticas(ativo, dias=7)
         var = "N/A"
