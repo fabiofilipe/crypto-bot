@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+*.md
+.env.example
+data/
+logs/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.db
+*.sqlite
+*.log
+tests/
+.github/

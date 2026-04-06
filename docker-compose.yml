@@ -1,0 +1,32 @@
+services:
+  collector:
+    build: .
+    container_name: crypto-collector
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    command: python -m src.scheduler
+
+  web:
+    build: .
+    container_name: crypto-web
+    env_file: .env
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    command: streamlit run src/interface/app.py --server.address 0.0.0.0 --server.port 8501
+
+  discord-bot:
+    build: .
+    container_name: crypto-discord-bot
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    command: python -m src.bot_discord
