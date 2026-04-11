@@ -14,12 +14,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from database.db_manager import DatabaseManager
 
 
+@st.cache_resource
+def _get_db():
+    """Cache do DatabaseManager (connection pooling)"""
+    return DatabaseManager()
+
+
 def show():
     """Renderiza a página de consultas"""
 
     st.header("🔍 Consultas e Análises")
 
-    db = DatabaseManager()
+    db = _get_db()
 
     # Tabs para diferentes consultas
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Estatísticas", "📜 Histórico", "🔄 Comparação", "💾 Exportação"])

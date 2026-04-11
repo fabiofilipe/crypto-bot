@@ -84,8 +84,12 @@ def show():
 
         from database.db_manager import DatabaseManager
 
+        @st.cache_resource
+        def _get_db_config():
+            return DatabaseManager()
+
         try:
-            db = DatabaseManager()
+            db = _get_db_config()
 
             # Informações do banco
             st.info(f"""
@@ -368,10 +372,10 @@ def mostrar_status_geral():
     # Banco de dados
     try:
         from database.db_manager import DatabaseManager
-        db = DatabaseManager()
+        _get_db_config()
         st.success("✅ Banco de Dados: Conectado")
-    except:
-        st.error("❌ Banco de Dados: Erro")
+    except Exception as e:
+        st.error(f"❌ Banco de Dados: {e}")
 
     # Discord
     webhook = os.getenv('DISCORD_WEBHOOK_URL')

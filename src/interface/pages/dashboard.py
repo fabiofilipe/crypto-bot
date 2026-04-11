@@ -16,12 +16,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from database.db_manager import DatabaseManager
 
 
+@st.cache_resource
+def _get_db():
+    """Cache do DatabaseManager (connection pooling)"""
+    return DatabaseManager()
+
+
 def show():
     """Renderiza a página de dashboard"""
 
     st.header("📊 Dashboard de Monitoramento")
 
-    db = DatabaseManager()
+    db = _get_db()
 
     # Controles
     col1, col2, col3 = st.columns([2, 1, 1])

@@ -1,11 +1,15 @@
 """
-Database manager com suporte a PostgreSQL (via psycopg2)
+Database manager com PostgreSQL, connection pooling e query caching
 """
 
 import os
+import time
+import hashlib
+import json
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
+from functools import wraps
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,14 +17,69 @@ load_dotenv()
 from utils.logger import configurar_logger
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_batch
 from psycopg2 import sql
+from psycopg2 import pool as pg_pool
+
+
+# ── Query Cache ─────────────────────────────────────────────
+
+class QueryCache:
+    """Cache de resultados de query com TTL"""
+
+    def __init__(self, default_ttl: int = 60, max_size: int = 256):
+        self.default_ttl = default_ttl
+        self.max_size = max_size
+        self._store: dict[str, tuple] = {}
+
+    def _key(self, func_name: str, args: tuple, kwargs: dict) -> str:
+        raw = json.dumps({"fn": func_name, "args": args, "kwargs": kwargs}, sort_keys=True, default=str)
+        return hashlib.md5(raw.encode()).hexdigest()
+
+    def get(self, key: str):
+        if key in self._store:
+            value, expires_at = self._store[key]
+            if time.time() < expires_at:
+                return value
+            del self._store[key]
+        return None
+
+    def set(self, key: str, value, ttl: int = None) -> None:
+        if len(self._store) >= self.max_size:
+            oldest_key = min(self._store, key=lambda k: self._store[k][1])
+            del self._store[oldest_key]
+        ttl = ttl or self.default_ttl
+        self._store[key] = (value, time.time() + ttl)
+
+    def clear(self) -> None:
+        self._store.clear()
+
+
+_cache = QueryCache(default_ttl=60, max_size=256)
+
+
+def cached(ttl: int = None):
+    """Decorator para cachear resultado de funções"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = _cache.key(func.__name__, args, kwargs)
+            result = _cache.get(key)
+            if result is not None:
+                return result
+            result = func(*args, **kwargs)
+            _cache.set(key, result, ttl=ttl)
+            return result
+        return wrapper
+    return decorator
 
 
 class DatabaseManager:
     """Gerenciador de conexões e operações com PostgreSQL"""
 
-    def __init__(self, db_url: Optional[str] = None):
+    _pool: Optional[pg_pool.SimpleConnectionPool] = None
+
+    def __init__(self, db_url: Optional[str] = None, min_conn: int = 2, max_conn: int = 20):
         self.db_url = db_url or os.getenv("DATABASE_URL")
         if not self.db_url:
             raise ValueError(
@@ -28,21 +87,50 @@ class DatabaseManager:
                 "Defina no .env: postgresql://user:password@host:port/dbname"
             )
         self.logger = configurar_logger("database")
+        self.min_conn = min_conn
+        self.max_conn = max_conn
+        self._inicializar_pool()
         self._inicializar_banco()
+
+    def _inicializar_pool(self):
+        """Inicializa connection pool singleton"""
+        if DatabaseManager._pool is None:
+            try:
+                DatabaseManager._pool = pg_pool.SimpleConnectionPool(
+                    minconn=self.min_conn,
+                    maxconn=self.max_conn,
+                    dsn=self.db_url
+                )
+                self.logger.info(f"Connection pool criado: {self.min_conn}-{self.max_conn} conexões")
+            except Exception as e:
+                self.logger.warning(f"Não foi possível criar pool (usando conexão direta): {e}")
+                DatabaseManager._pool = None
 
     @contextmanager
     def get_connection(self):
-        """Context manager para conexões seguras"""
-        conn = psycopg2.connect(self.db_url)
-        try:
-            yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            self.logger.error(f"Erro na transação: {e}")
-            raise
-        finally:
-            conn.close()
+        """Context manager para conexões seguras (usa pool se disponível)"""
+        if DatabaseManager._pool:
+            conn = DatabaseManager._pool.getconn()
+            try:
+                yield conn
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Erro na transação: {e}")
+                raise
+            finally:
+                DatabaseManager._pool.putconn(conn)
+        else:
+            conn = psycopg2.connect(self.db_url)
+            try:
+                yield conn
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                self.logger.error(f"Erro na transação: {e}")
+                raise
+            finally:
+                conn.close()
 
     def _executar(self, query: str, params: tuple = (), fetch=None):
         """Helper para executar queries"""
@@ -137,8 +225,35 @@ class DatabaseManager:
             fetch="count",
         )
 
+    def inserir_lote(self, registros: list[dict]) -> int:
+        """Insere múltiplos registros em uma única operação (batch insert)"""
+        if not registros:
+            return 0
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cur:
+                    values = [
+                        (r["ativo"], r["preco"], r["moeda"], r["horario_coleta"])
+                        for r in registros
+                    ]
+                    execute_batch(
+                        cur,
+                        "INSERT INTO precos (ativo, preco, moeda, horario_coleta) VALUES (%s, %s, %s, %s)",
+                        values,
+                    )
+            self.logger.info(f"Batch insert: {len(registros)} registros inseridos")
+            return len(registros)
+        except Exception as e:
+            self.logger.error(f"Erro no batch insert: {e}")
+            return 0
+
+    def invalidate_cache(self):
+        """Limpa o cache de queries (usar após inserts)"""
+        _cache.clear()
+
     # ── Consultas ───────────────────────────────────────────
 
+    @cached(ttl=30)
     def obter_ultimo_preco(self, ativo: str) -> Optional[dict]:
         """Obtém o último preço registrado"""
         return self._executar(
@@ -155,10 +270,11 @@ class DatabaseManager:
             fetch="all",
         )
 
+    @cached(ttl=60)
     def obter_estatisticas(self, ativo: str, dias: int = 7) -> Optional[dict]:
         """Estatísticas de um ativo nos últimos N dias"""
-        return self._executar(
-            """
+        # CORRIGIDO: INTERVAL com valor inteiro seguro (não é parâmetro SQL)
+        query = f"""
             SELECT
                 COUNT(*) as total_registros,
                 MIN(preco)::float as preco_minimo,
@@ -168,11 +284,9 @@ class DatabaseManager:
                 MAX(horario_coleta) as ultima_coleta
             FROM precos
             WHERE ativo = %s
-            AND horario_coleta >= NOW() - INTERVAL '%s days'
-            """,
-            (ativo, dias),
-            fetch="one",
-        )
+            AND horario_coleta >= NOW() - INTERVAL '{int(dias)} days'
+            """
+        return self._executar(query, (ativo,), fetch="one")
 
     def obter_variacao_24h(self, ativo: str) -> Optional[dict]:
         """Calcula variação nas últimas 24h"""
@@ -207,17 +321,18 @@ class DatabaseManager:
             fetch="all",
         )
 
+    @cached(ttl=30)
     def obter_ranking_variacao(self, horas: int = 24, limite: int = 10) -> list:
         """Ranking de ativos por variação percentual"""
-        return self._executar(
-            """
+        # CORRIGIDO: INTERVAL com valor inteiro seguro
+        query = f"""
             WITH dados AS (
                 SELECT
                     ativo,
                     FIRST_VALUE(preco) OVER (PARTITION BY ativo ORDER BY horario_coleta DESC) as preco_atual,
                     FIRST_VALUE(preco) OVER (PARTITION BY ativo ORDER BY horario_coleta ASC) as preco_antigo
                 FROM precos
-                WHERE horario_coleta >= NOW() - INTERVAL '%s hours'
+                WHERE horario_coleta >= NOW() - INTERVAL '{int(horas)} hours'
             )
             SELECT DISTINCT
                 ativo,
@@ -229,12 +344,11 @@ class DatabaseManager:
                 END as variacao_pct
             FROM dados
             ORDER BY variacao_pct DESC
-            LIMIT %s
-            """,
-            (horas, limite),
-            fetch="all",
-        )
+            LIMIT {int(limite)}
+            """
+        return self._executar(query, fetch="all")
 
+    @cached(ttl=30)
     def obter_resumo_mercado(self) -> list:
         """Resumo de todos os ativos com último preço e variação"""
         return self._executar(

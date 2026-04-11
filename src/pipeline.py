@@ -59,7 +59,8 @@ class PipelineColeta:
         if ativos:
             self.coletores = [obter_coletor(s) for s in ativos]
         else:
-            self.coletores = [ColetorBitcoin(), ColetorEthereum()]
+            # CORRIGIDO: coleta TODOS os ativos por default, não apenas BTC+ETH
+            self.coletores = todos_coletores()
 
         self.db = DatabaseManager()
         self.logger = configurar_logger("pipeline")
@@ -100,6 +101,9 @@ class PipelineColeta:
             else:
                 resultados["falha"].append(nome)
                 print(f"❌ {nome} falhou na coleta")
+
+        # Invalidar cache após coleta (dados novos disponíveis)
+        self.db.invalidate_cache()
 
         # Alertas
         alertas_gerados = []

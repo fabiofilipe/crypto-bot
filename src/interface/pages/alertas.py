@@ -14,6 +14,12 @@ from alertas import SistemaAlertas
 from database.db_manager import DatabaseManager
 
 
+@st.cache_resource
+def _get_db():
+    """Cache do DatabaseManager (connection pooling)"""
+    return DatabaseManager()
+
+
 def show():
     """Renderiza a página de alertas"""
 
@@ -57,7 +63,7 @@ def show():
                 verificar_todos_alertas(limite_percentual, discord_enabled)
 
         with col2:
-            db = DatabaseManager()
+            db = _get_db()
             ativos = db.listar_ativos()
 
             if ativos:
@@ -77,7 +83,7 @@ def show():
         Esta configuração é temporária e não persiste entre sessões.
         """)
 
-        db = DatabaseManager()
+        db = _get_db()
         ativos = db.listar_ativos()
 
         if ativos:
@@ -139,7 +145,7 @@ def show():
         Não precisa esperar por variações - envie quando quiser verificar o status.
         """)
 
-        db = DatabaseManager()
+        db = _get_db()
         ativos = db.listar_ativos()
 
         if ativos:
@@ -419,7 +425,7 @@ def enviar_status_discord(ativo, incluir_stats=True):
             st.write("📡 Conectando ao Discord...")
 
             notifier = DiscordNotifier()
-            db = DatabaseManager()
+            db = _get_db()
 
             # Buscar dados
             ultimo = db.obter_ultimo_preco(ativo)
@@ -501,7 +507,7 @@ def enviar_todos_ativos_discord():
             st.write("📡 Conectando ao Discord...")
 
             notifier = DiscordNotifier()
-            db = DatabaseManager()
+            db = _get_db()
 
             # Buscar todos os ativos
             ativos = db.listar_ativos()

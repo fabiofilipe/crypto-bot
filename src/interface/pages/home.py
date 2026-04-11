@@ -13,6 +13,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from database.db_manager import DatabaseManager
 
 
+@st.cache_resource
+def _get_db():
+    """Cache do DatabaseManager (connection pooling)"""
+    return DatabaseManager()
+
+
 def show():
     """Renderiza a página inicial"""
 
@@ -22,7 +28,7 @@ def show():
     col1, col2, col3 = st.columns(3)
 
     try:
-        db = DatabaseManager()
+        db = _get_db()
         ativos = db.listar_ativos()
 
         # Card 1: Total de ativos
@@ -141,10 +147,10 @@ def show():
 
     with col1:
         try:
-            db = DatabaseManager()
+            _get_db()
             st.success("✅ Banco de Dados: Conectado")
-        except:
-            st.error("❌ Banco de Dados: Erro")
+        except Exception as e:
+            st.error(f"❌ Banco de Dados: {e}")
 
     with col2:
         try:
@@ -156,8 +162,8 @@ def show():
                 st.success("✅ Discord: Configurado")
             else:
                 st.warning("⚠️ Discord: Não configurado")
-        except:
-            st.error("❌ Discord: Erro")
+        except Exception as e:
+            st.error(f"❌ Discord: {e}")
 
     with col3:
         import os
